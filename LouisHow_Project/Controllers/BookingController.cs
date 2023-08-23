@@ -104,15 +104,6 @@ namespace LouisHow_Project.Controllers
             if (entity.BookedBy != User.Identity.Name)
                 return Forbid(); // User is not allowed to delete this booking
 
-            // Check if the status is not "Pending"
-            if (entity.Status != BookingStatus.Pending)
-            {
-                // If the status is not "Pending," change it to "Cancelled"
-                entity.Status = BookingStatus.Cancelled;
-                _context.SaveChanges();
-                return Ok(entity);
-            }
-
             _context.Bookings.Remove(entity);
             _context.SaveChanges();
 
@@ -160,6 +151,19 @@ namespace LouisHow_Project.Controllers
         public AdminController(ApplicationDBContext context)
         {
             _context = context;
+        }
+
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpPost]
+        public IActionResult Post(Bookings bookings)
+        {
+            // Set the status to Pending
+            bookings.Status = BookingStatus.Pending;
+
+            _context.Bookings.Add(bookings);
+            _context.SaveChanges();
+
+            return CreatedAtAction("GetAllUser", new { id = bookings.BookingID }, bookings);
         }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpGet]
