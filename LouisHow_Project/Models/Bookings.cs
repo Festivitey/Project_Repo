@@ -8,7 +8,7 @@ namespace LouisHow_Project.Models
         public int BookingID { get; set; }
         public string? FacilityDescription { get; set; }
         public DateTime BookingDateFrom { get; set; }
-        public DateTime BookingDateTo { get; set; }
+        public DateTime BookingDateTo { get; set; } 
         public string? BookedBy { get; set; }
         
         [EnumDataType(typeof(BookingStatus), ErrorMessage = "Invalid status value")]
