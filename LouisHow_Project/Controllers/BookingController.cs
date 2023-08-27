@@ -18,7 +18,14 @@ namespace LouisHow_Project.Controllers
         {
             _context = context;
         }
-
+        [HttpPost]
+        public IActionResult UserProfile()
+        {
+            // Get the logged-in user's username
+            string loggedInUsername = User.Identity.Name;
+           
+            return Ok();
+        }
         [HttpPost]
         public IActionResult Post(Bookings bookings)
         {
@@ -103,10 +110,16 @@ namespace LouisHow_Project.Controllers
             // Check if the booking was created by the logged-in user
             if (entity.BookedBy != User.Identity.Name)
                 return Forbid(); // User is not allowed to delete this booking
+            if (entity.Status == BookingStatus.Confirmed || entity.Status == BookingStatus.Cancelled)
+                return BadRequest("Cannot delete a booking with a status of 'Confirmed' or 'Cancelled'.");
 
-            _context.Bookings.Remove(entity);
+            // Check if the status is "Pending" to allow date and facility description changes
+            if (entity.Status == BookingStatus.Pending)
+            {
+                _context.Bookings.Remove(entity);
+                
+            }
             _context.SaveChanges();
-
             return Ok(entity);
         }
 
@@ -163,7 +176,7 @@ namespace LouisHow_Project.Controllers
             _context.Bookings.Add(bookings);
             _context.SaveChanges();
 
-            return CreatedAtAction("GetAllUser", new { id = bookings.BookingID }, bookings);
+            return CreatedAtAction("GetAllAdmin", new { id = bookings.BookingID }, bookings);
         }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpGet]
@@ -172,6 +185,28 @@ namespace LouisHow_Project.Controllers
             return Ok(_context.Bookings);
         }
 
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpGet("{id}")]
+        public IActionResult GetById(int id)
+        {
+            var bookings = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
+            if (bookings == null)
+                return Problem(detail: "Booking with id " + id + "is not found.", statusCode: 404);
+            return Ok(bookings);
+        }
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpGet("{fromDate}/{toDate}")]
+        public IActionResult GetByDateRange(DateTime fromDate, DateTime toDate)
+        {
+            // Adjust the toDate to include the entire day
+            toDate = toDate.AddDays(1).AddTicks(-1);
+
+            var bookingsInRange = _context.Bookings
+                .Where(b => b.BookingDateFrom >= fromDate && b.BookingDateTo <= toDate)
+                .ToList();
+
+            return Ok(bookingsInRange);
+        }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpGet("{bookedBy}")]
         public IActionResult BookedBy(string bookedBy)
@@ -182,7 +217,16 @@ namespace LouisHow_Project.Controllers
 
             return Ok(bookingsByUser);
         }
+        [Authorize(Roles = UserRoles.Admin)]
+        [HttpGet]
+        public IActionResult GetByStatus(BookingStatus status)
+        {
+            var bookingsByStatus = _context.Bookings
+                .Where(b => b.Status == status)
+                .ToList();
 
+            return Ok(bookingsByStatus);
+        }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpPut("{id}")]
         public IActionResult Put(int id, Bookings bookings)
@@ -213,24 +257,6 @@ namespace LouisHow_Project.Controllers
             _context.SaveChanges();
 
             return Ok(entity);
-        }
-
-        [Authorize(Roles = UserRoles.Admin)]
-        // DELETE: api/Booking
-        [HttpDelete]
-        public IActionResult ClearBookings()
-        {
-            var allBookings = _context.Bookings.ToList();
-
-            if (allBookings.Count == 0)
-            {
-                return NotFound("No bookings found.");
-            }
-
-            _context.Bookings.RemoveRange(allBookings);
-            _context.SaveChanges();
-
-            return Ok("All bookings cleared.");
         }
     }
 }

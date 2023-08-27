@@ -9,6 +9,7 @@ using System.Reflection.Metadata;
 using System.Text;
 using static System.Net.Mime.MediaTypeNames;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -82,26 +83,41 @@ builder.Services.AddSwaggerGen(option =>
         }
     });
 });
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(builder =>
+    {
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
 
-//Authentication
+// Allow CORS (Cross-Origin Resource Sharing)
+app.UseCors();
+
+// Use JWT Authentication
 app.UseAuthentication();
 
-// Configure the HTTP request pipeline.
+// Enable HTTPS redirection
+app.UseHttpsRedirection();
+
+// Enable Swagger for development environment
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
+// Enable authorization
 app.UseAuthorization();
 
+// Map controllers
 app.MapControllers();
 
+// Run the application
 app.Run();
-
 
 //New Comment Line
