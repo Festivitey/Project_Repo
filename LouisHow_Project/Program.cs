@@ -1,29 +1,25 @@
-using LouisHow_Project.Models;
 using LouisHow_Project.Data;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Reflection.Metadata;
-using System.Text;
-using static System.Net.Mime.MediaTypeNames;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddDbContext<ApplicationDBContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DbConn")
-    )
-);
 
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<ApplicationDBContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DbConn")));
 builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
+<<<<<<< HEAD
 
 // For Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
@@ -105,6 +101,11 @@ app.UseAuthentication();
 app.UseHttpsRedirection();
 
 // Enable Swagger for development environment
+=======
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+>>>>>>> parent of 12f6f41 (Final)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -119,5 +120,8 @@ app.MapControllers();
 
 // Run the application
 app.Run();
+<<<<<<< HEAD
 
 //New Comment Line
+=======
+>>>>>>> parent of 12f6f41 (Final)

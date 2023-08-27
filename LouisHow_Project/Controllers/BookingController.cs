@@ -1,13 +1,10 @@
 ﻿using LouisHow_Project.Data;
 using LouisHow_Project.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace LouisHow_Project.Controllers
 {
-    [Authorize]
     [Route("api/[controller]/[action]")]
     [ApiController]
     public class BookingController : ControllerBase
@@ -18,90 +15,52 @@ namespace LouisHow_Project.Controllers
         {
             _context = context;
         }
-        [HttpPost]
-        public IActionResult UserProfile()
-        {
-            // Get the logged-in user's username
-            string loggedInUsername = User.Identity.Name;
-           
-            return Ok();
-        }
-        [HttpPost]
-        public IActionResult Post(Bookings bookings)
-        {
-            // Get the logged-in user's username
-            string loggedInUsername = User.Identity.Name;
 
-            // Populate the BookedBy field with the username
-            bookings.BookedBy = loggedInUsername;
-
-            // Set the status to Pending
-            bookings.Status = BookingStatus.Pending;
-
-            _context.Bookings.Add(bookings);
-            _context.SaveChanges();
-
-            return CreatedAtAction("GetAllUser", new { id = bookings.BookingID }, bookings);
-        }
+        //GET: api/Bookings
         [HttpGet]
-        public IActionResult GetAllUser()
+        public IActionResult GetAll() 
         {
-            // Get the logged-in user's username
-            string loggedInUsername = User.Identity.Name;
-
-            // Retrieve bookings that were booked by the logged-in user
-            var bookingsByUser = _context.Bookings
-                .Where(b => b.BookedBy == loggedInUsername)
-                .ToList();
-
-            return Ok(bookingsByUser);
+            return Ok(_context.Bookings);
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetById(int id)
+        public IActionResult GetById(int id) 
         {
             var bookings = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
             if (bookings == null)
                 return Problem(detail: "Booking with id " + id + "is not found.", statusCode: 404);
-
-            // Check if the booking was created by the logged-in user
-            if (bookings.BookedBy != User.Identity.Name)
-                return Forbid(); // User is not allowed to access this booking
-
-            return Ok(bookings);
+            return Ok(bookings); ;
         }
-
-        [HttpGet("{fromDate}/{toDate}")]
+        [HttpGet("byDateRange")]
         public IActionResult GetByDateRange(DateTime fromDate, DateTime toDate)
         {
-            // Get the logged-in user's username
-            string loggedInUsername = User.Identity.Name;
-
-            // Adjust the toDate to include the entire day
-            toDate = toDate.AddDays(1).AddTicks(-1);
-
             var bookingsInRange = _context.Bookings
-                .Where(b => b.BookingDateFrom >= fromDate && b.BookingDateTo <= toDate && b.BookedBy == loggedInUsername)
+                .Where(b => b.BookingDateFrom >= fromDate && b.BookingDateTo <= toDate)
                 .ToList();
 
             return Ok(bookingsInRange);
         }
+        [HttpGet("byBookedBy")]
+        public IActionResult GetByBookedBy(string bookedBy)
+        {
+            var bookingsByUser = _context.Bookings
+                .Where(b => b.BookedBy == bookedBy)
+                .ToList();
 
-        [HttpGet]
+            return Ok(bookingsByUser);
+        }
+        [HttpGet("byStatus")]
         public IActionResult GetByStatus(BookingStatus status)
         {
-            // Get the logged-in user's username
-            string loggedInUsername = User.Identity.Name;
-
             var bookingsByStatus = _context.Bookings
-                .Where(b => b.Status == status && b.BookedBy == loggedInUsername)
+                .Where(b => b.Status == status)
                 .ToList();
 
             return Ok(bookingsByStatus);
         }
 
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        [HttpPost]
+        public IActionResult Post(Bookings bookings) 
         {
             var entity = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
             if (entity == null)
@@ -110,44 +69,33 @@ namespace LouisHow_Project.Controllers
             // Check if the booking was created by the logged-in user
             if (entity.BookedBy != User.Identity.Name)
                 return Forbid(); // User is not allowed to delete this booking
-            if (entity.Status == BookingStatus.Confirmed || entity.Status == BookingStatus.Cancelled)
-                return BadRequest("Cannot delete a booking with a status of 'Confirmed' or 'Cancelled'.");
 
-            // Check if the status is "Pending" to allow date and facility description changes
-            if (entity.Status == BookingStatus.Pending)
+            // Check if the status is not "Pending"
+            if (entity.Status != BookingStatus.Pending)
             {
-                _context.Bookings.Remove(entity);
-                
+                // If the status is not "Pending," change it to "Cancelled"
+                entity.Status = BookingStatus.Cancelled;
+                _context.SaveChanges();
+                return Ok(entity);
             }
+
+            _context.Bookings.Remove(entity);
             _context.SaveChanges();
+
             return Ok(entity);
         }
-
-
-        [HttpPut("{id}")]
-        public IActionResult Put(int id, Bookings updatedBookings)
+        // DELETE: api/Booking
+        [HttpDelete]
+        public IActionResult ClearBookings()
         {
-            var entity = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
-            if (entity == null)
-                return Problem(detail: "Booking id " + id + " is not found.", statusCode: 404);
+            var allBookings = _context.Bookings.ToList();
 
-            // Check if the booking was created by the logged-in user
-            if (entity.BookedBy != User.Identity.Name)
-                return Forbid(); // User is not allowed to update this booking
-
-            // Check if the status is "Confirmed" or "Cancelled"
-            if (entity.Status == BookingStatus.Confirmed || entity.Status == BookingStatus.Cancelled)
-                return BadRequest("Cannot update a booking with a status of 'Confirmed' or 'Cancelled'.");
-
-            // Check if the status is "Pending" to allow date and facility description changes
-            if (entity.Status == BookingStatus.Pending)
+            if (allBookings.Count == 0)
             {
-                // Update the date and facility description
-                entity.BookingDateFrom = updatedBookings.BookingDateFrom;
-                entity.BookingDateTo = updatedBookings.BookingDateTo;
-                entity.FacilityDescription = updatedBookings.FacilityDescription;
+                return NotFound("No bookings found.");
             }
 
+            _context.Bookings.RemoveRange(allBookings);
             _context.SaveChanges();
             return Ok(entity);
         }
@@ -165,19 +113,6 @@ namespace LouisHow_Project.Controllers
         {
             _context = context;
         }
-
-        [Authorize(Roles = UserRoles.Admin)]
-        [HttpPost]
-        public IActionResult Post(Bookings bookings)
-        {
-            // Set the status to Pending
-            bookings.Status = BookingStatus.Pending;
-
-            _context.Bookings.Add(bookings);
-            _context.SaveChanges();
-
-            return CreatedAtAction("GetAllAdmin", new { id = bookings.BookingID }, bookings);
-        }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpGet]
         public IActionResult GetAllAdmin()
@@ -186,28 +121,6 @@ namespace LouisHow_Project.Controllers
         }
 
         [Authorize(Roles = UserRoles.Admin)]
-        [HttpGet("{id}")]
-        public IActionResult GetById(int id)
-        {
-            var bookings = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
-            if (bookings == null)
-                return Problem(detail: "Booking with id " + id + "is not found.", statusCode: 404);
-            return Ok(bookings);
-        }
-        [Authorize(Roles = UserRoles.Admin)]
-        [HttpGet("{fromDate}/{toDate}")]
-        public IActionResult GetByDateRange(DateTime fromDate, DateTime toDate)
-        {
-            // Adjust the toDate to include the entire day
-            toDate = toDate.AddDays(1).AddTicks(-1);
-
-            var bookingsInRange = _context.Bookings
-                .Where(b => b.BookingDateFrom >= fromDate && b.BookingDateTo <= toDate)
-                .ToList();
-
-            return Ok(bookingsInRange);
-        }
-        [Authorize(Roles = UserRoles.Admin)]
         [HttpGet("{bookedBy}")]
         public IActionResult BookedBy(string bookedBy)
         {
@@ -215,7 +128,7 @@ namespace LouisHow_Project.Controllers
                 .Where(b => b.BookedBy == bookedBy)
                 .ToList();
 
-            return Ok(bookingsByUser);
+            return Ok("All bookings cleared.");
         }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpGet]
@@ -225,8 +138,6 @@ namespace LouisHow_Project.Controllers
                 .Where(b => b.Status == status)
                 .ToList();
 
-            return Ok(bookingsByStatus);
-        }
         [Authorize(Roles = UserRoles.Admin)]
         [HttpPut("{id}")]
         public IActionResult Put(int id, Bookings bookings)
@@ -238,7 +149,6 @@ namespace LouisHow_Project.Controllers
             entity.FacilityDescription = bookings.FacilityDescription;
             entity.BookingDateFrom = bookings.BookingDateFrom;
             entity.BookingDateTo = bookings.BookingDateTo;
-            entity.FacilityDescription = bookings.FacilityDescription;
             entity.Status = bookings.Status;
 
             _context.SaveChanges();
@@ -246,17 +156,21 @@ namespace LouisHow_Project.Controllers
         }
 
         [Authorize(Roles = UserRoles.Admin)]
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        // DELETE: api/Booking
+        [HttpDelete]
+        public IActionResult ClearBookings()
         {
-            var entity = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
-            if (entity == null)
-                return Problem(detail: "Booking with id " + id + " is not found.");
+            var allBookings = _context.Bookings.ToList();
 
-            _context.Bookings.Remove(entity);
+            if (allBookings.Count == 0)
+            {
+                return NotFound("No bookings found.");
+            }
+
+            _context.Bookings.RemoveRange(allBookings);
             _context.SaveChanges();
 
-            return Ok(entity);
+            return Ok("All bookings cleared.");
         }
     }
 }
