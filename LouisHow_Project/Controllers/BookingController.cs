@@ -162,6 +162,22 @@ namespace LouisHow_Project.Controllers
 
             _context.Bookings.Add(bookings);
             _context.SaveChanges();
+            var entity = _context.Bookings.FirstOrDefault(e => e.BookingID == id);
+            if (entity == null)
+                return Problem(detail: "Booking with id " + id + " is not found.");
+
+            // Check if the booking was created by the logged-in user
+            if (entity.BookedBy != User.Identity.Name)
+                return Forbid(); // User is not allowed to delete this booking
+
+            // Check if the status is not "Pending"
+            if (entity.Status != BookingStatus.Pending)
+            {
+                // If the status is not "Pending," change it to "Cancelled"
+                entity.Status = BookingStatus.Cancelled;
+                _context.SaveChanges();
+                return Ok(entity);
+            }
 
             return CreatedAtAction("GetAllUser", new { id = bookings.BookingID }, bookings);
         }

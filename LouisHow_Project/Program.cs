@@ -84,6 +84,15 @@ var app = builder.Build();
 app.UseAuthentication();
 
 // Configure the HTTP request pipeline.
+// Enable HTTPS redirection
+app.UseHttpsRedirection();
+
+// Enable Swagger for development environment
+=======
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+>>>>>>> parent of 12f6f41 (Final)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -101,3 +110,5 @@ app.Run();
 
 
 //New Comment Line
+=======
+>>>>>>> parent of 12f6f41 (Final)
